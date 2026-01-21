@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Location Access</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f8f9fa; }
+        .btn { background-color: #d9534f; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; }
+        .status { margin-top: 20px; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>Emergency Assistance</h1>
+    <p>Location share karne ke liye niche button dabayein.</p>
+    
+    <button class="btn" onclick="sendLocation()">SHARE MY LOCATION</button>
+    <div id="status" class="status"></div>
+
+    <script>
+        // Aapka provide kiya gaya Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0SBFtrhGPMI3tiBJPSePBRrjR0gUpm0Q",
+            authDomain: "loac-fb920.firebaseapp.com",
+            databaseURL: "https://loac-fb920-default-rtdb.firebaseio.com",
+            projectId: "loac-fb920",
+            storageBucket: "loac-fb920.firebasestorage.app",
+            messagingSenderId: "1019799005125",
+            appId: "1:1019799005125:web:889ced5ba3330ddc944dac"
+        };
+
+        // Firebase ko initialize karein
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        function sendLocation() {
+            const status = document.getElementById('status');
+            status.innerText = "Location access maangi ja rahi hai...";
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    // Database mein data bhej rahe hain
+                    database.ref('emergency_requests/').push({
+                        latitude: lat,
+                        longitude: lon,
+                        timestamp: new Date().toLocaleString(),
+                        mapLink: `https://www.google.com/maps?q=${lat},${lon}`
+                    }).then(() => {
+                        status.innerText = "Success! Location bhej di gayi hai.";
+                        alert("Aapki location Admin tak pahunch gayi hai.");
+                    }).catch((error) => {
+                        status.innerText = "Error: " + error.message;
+                    });
+
+                }, (error) => {
+                    status.innerText = "Permission Denied! Bina iske kaam nahi chalega.";
+                }, { enableHighAccuracy: true });
+            } else {
+                status.innerText = "Aapka browser support nahi karta.";
+            }
+        }
+    </script>
+</body>
+</html>
